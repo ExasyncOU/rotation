@@ -1,0 +1,181 @@
+{
+  "name": "PDF Rotation Detection - Flexible (URL oder Base64)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pdf-rotation",
+        "options": {
+          "rawBody": false
+        },
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-input",
+      "name": "Webhook - PDF Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "pdf-rotation-input"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Intelligente Erkennung: URL oder Binary?\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const json = item.json;\n  const binary = item.binary;\n  \n  let payload = {\n    event_type: \"detect-rotation\",\n    client_payload: {\n      visualize: json.visualize || false,\n      callback_url: json.callback_url || \"\"\n    }\n  };\n  \n  // Methode 1: PDF-URL wurde übergeben\n  if (json.pdf_url) {\n    console.log('Using URL method');\n    payload.client_payload.pdf_url = json.pdf_url;\n  }\n  // Methode 2: Binary Daten (PDF-Upload)\n  else if (binary && binary.data) {\n    console.log('Using Base64 method from binary');\n    payload.client_payload.pdf_base64 = binary.data.data;\n  }\n  // Methode 3: Base64 wurde direkt übergeben\n  else if (json.pdf_base64) {\n    console.log('Using Base64 method from json');\n    payload.client_payload.pdf_base64 = json.pdf_base64;\n  }\n  else {\n    throw new Error('Weder pdf_url noch pdf_base64 oder Binary-Daten gefunden!');\n  }\n  \n  results.push({\n    json: payload\n  });\n}\n\nreturn results;"
+      },
+      "id": "code-prepare",
+      "name": "Smart Payload Builder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/ExasyncOU/rotation/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "http-github",
+      "name": "GitHub Actions Trigger",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [680, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-github-credential-id",
+          "name": "GitHub Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"PDF Rotation Detection gestartet\",\n  \"github_status\": $json\n} }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Response - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rotation-callback",
+        "options": {},
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-callback",
+      "name": "Webhook - Result Callback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "webhookId": "rotation-result-callback"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verarbeite die Ergebnisse von GitHub Actions\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  results.push({\n    json: {\n      rotation_detected: true,\n      median_angle: data.median_angle,\n      mean_angle: data.mean_angle,\n      needs_correction: data.needs_correction,\n      lines_detected: data.lines_detected,\n      std_dev: data.std_dev,\n      recommendation: data.needs_correction \n        ? `Rotiere das PDF um ${-data.median_angle.toFixed(2)}° um es zu korrigieren`\n        : 'Das PDF ist bereits gut ausgerichtet',\n      timestamp: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "code-process-result",
+      "name": "Process Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-result",
+      "name": "Response - Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "Webhook - PDF Input": {
+      "main": [
+        [
+          {
+            "node": "Smart Payload Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smart Payload Builder": {
+      "main": [
+        [
+          {
+            "node": "GitHub Actions Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Actions Trigger": {
+      "main": [
+        [
+          {
+            "node": "Response - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Result Callback": {
+      "main": [
+        [
+          {
+            "node": "Process Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Result": {
+      "main": [
+        [
+          {
+            "node": "Response - Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 2,
+  "updatedAt": "2024-01-10T12:00:00.000Z",
+  "versionId": "1"
+}

@@ -40,7 +40,15 @@ python detect_rotation.py path/to/your/document.pdf --visualize
 3. Optional: Aktiviere Visualisierung
 4. Klicke auf `Run workflow`
 
-### 3. N8N Integration
+### 3. N8N Integration (Beide Methoden: URL oder Base64)
+
+Der Workflow unterstützt **zwei Methoden** zum Senden von PDFs:
+- ✅ **URL-Methode**: PDF liegt bereits online (z.B. Cloud Storage)
+- ✅ **Base64-Methode**: PDF direkt aus N8N hochladen/senden
+
+#### Quick Start: Importiere fertigen Workflow
+
+Importiere `n8n_workflow_flexible.json` in N8N für einen sofort einsatzbereiten Workflow mit **intelligenter Erkennung** beider Methoden.
 
 #### Schritt 1: GitHub Personal Access Token erstellen
 
@@ -49,7 +57,37 @@ python detect_rotation.py path/to/your/document.pdf --visualize
    - `repo` (Full control of private repositories)
 3. Kopiere den Token
 
-#### Schritt 2: N8N Workflow erstellen
+#### Schritt 2: N8N Workflow erstellen (Manuelle Konfiguration)
+
+**Empfehlung**: Verwende einen **Code Node** für flexible Unterstützung beider Methoden.
+
+##### Code Node: "Smart Payload Builder"
+
+```javascript
+const json = $input.item.json;
+const binary = $input.item.binary;
+
+let payload = {
+  event_type: "detect-rotation",
+  client_payload: {
+    visualize: json.visualize || false,
+    callback_url: json.callback_url || ""
+  }
+};
+
+// Automatische Erkennung: URL oder Base64?
+if (json.pdf_url) {
+  payload.client_payload.pdf_url = json.pdf_url;
+} else if (binary && binary.data) {
+  payload.client_payload.pdf_base64 = binary.data.data;
+} else if (json.pdf_base64) {
+  payload.client_payload.pdf_base64 = json.pdf_base64;
+}
+
+return { json: payload };
+```
+
+##### HTTP Request Node Konfiguration
 
 Verwende den **HTTP Request Node** mit folgenden Einstellungen:
 
@@ -72,32 +110,65 @@ https://api.github.com/repos/ExasyncOU/rotation/dispatches
 }
 ```
 
-**Body (JSON) - Option 1: Mit URL**
+**Body Content Type:** `JSON`
+
+**Body (mit Code Node - Empfohlen):**
+```json
+={{ JSON.stringify($json) }}
+```
+> Der Code Node bereitet automatisch den richtigen Payload vor (URL oder Base64)
+
+**Body (Ohne Code Node - Manuell):**
 ```json
 {
   "event_type": "detect-rotation",
   "client_payload": {
-    "pdf_url": "https://example.com/your-document.pdf",
-    "visualize": false,
-    "callback_url": "https://your-n8n-webhook.com/callback"
+    "pdf_url": "={{ $json.pdf_url }}",
+    "pdf_base64": "={{ $json.pdf_base64 || ($binary.data ? $binary.data.data : undefined) }}",
+    "visualize": "={{ $json.visualize || false }}",
+    "callback_url": "={{ $json.callback_url || '' }}"
   }
 }
 ```
+> Beide Felder werden akzeptiert, GitHub Actions verwendet automatisch die richtige Methode
 
-**Body (JSON) - Option 2: Mit Base64 (für direkte PDF-Uploads)**
+#### Verwendungsbeispiele
+
+**Beispiel 1: PDF von URL laden**
+
+Sende folgendes JSON an deinen N8N Webhook:
 ```json
 {
-  "event_type": "detect-rotation",
-  "client_payload": {
-    "pdf_base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8P...",
-    "visualize": false,
-    "callback_url": "https://your-n8n-webhook.com/callback"
-  }
+  "pdf_url": "https://example.com/your-document.pdf",
+  "visualize": false,
+  "callback_url": "https://your-n8n-webhook.com/callback"
 }
 ```
 
-> **Hinweis:** Die Base64-Methode ist ideal, wenn du PDFs direkt aus N8N hochlädst.
-> Siehe `N8N_BASE64_GUIDE.md` für detaillierte Anleitung.
+**Beispiel 2: PDF als Base64 senden**
+
+Sende folgendes JSON an deinen N8N Webhook:
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8P...",
+  "visualize": true,
+  "callback_url": "https://your-n8n-webhook.com/callback"
+}
+```
+
+**Beispiel 3: PDF als Binary hochladen**
+
+Sende ein Multipart-Form-Upload an deinen N8N Webhook:
+```bash
+curl -X POST https://your-n8n.app.n8n.cloud/webhook/pdf-rotation \
+  -F "data=@document.pdf" \
+  -F "visualize=false"
+```
+
+> **Detaillierte Anleitungen:**
+> - `n8n_workflow_flexible.json` - Kompletter Workflow zum Importieren
+> - `n8n_http_request_examples.md` - Schritt-für-Schritt Konfiguration
+> - `N8N_BASE64_GUIDE.md` - Detaillierte Base64 Anleitung
 
 #### Schritt 3: Callback empfangen (Optional)
 
@@ -161,9 +232,12 @@ Der Workflow kann auf drei Arten gestartet werden:
 
 | Parameter | Typ | Beschreibung | Erforderlich |
 |-----------|-----|--------------|--------------|
-| `pdf_url` | String | URL zum PDF-Dokument | Ja |
+| `pdf_url` | String | URL zum PDF-Dokument | Nein* |
+| `pdf_base64` | String | Base64-kodiertes PDF | Nein* |
 | `visualize` | Boolean | Visualisierung erstellen | Nein (default: false) |
 | `callback_url` | String | URL für Ergebnis-Callback | Nein |
+
+*Mindestens eines von `pdf_url` oder `pdf_base64` muss angegeben werden
 
 ### Artifacts
 
@@ -212,6 +286,34 @@ Mit [act](https://github.com/nektos/act):
 ```bash
 act repository_dispatch -e test-event.json
 ```
+
+## Repository Dateien
+
+| Datei | Beschreibung |
+|-------|--------------|
+| `detect_rotation.py` | Python-Script für Rotationserkennung |
+| `requirements.txt` | Python Dependencies |
+| `.github/workflows/rotation-detection.yml` | GitHub Actions Workflow (unterstützt URL + Base64) |
+| `n8n_workflow_flexible.json` | ⭐ **Empfohlen**: Kompletter N8N Workflow mit intelligenter Erkennung |
+| `n8n_workflow_complete.json` | Alternative N8N Workflow Variante |
+| `n8n_http_request_examples.md` | 📖 Detaillierte Konfigurationsanleitung für N8N |
+| `N8N_BASE64_GUIDE.md` | 📖 Schritt-für-Schritt Base64 Anleitung |
+| `README.md` | Diese Datei |
+
+### Welche Datei soll ich verwenden?
+
+**Für schnellen Start:**
+- Importiere `n8n_workflow_flexible.json` in N8N
+- Konfiguriere dein GitHub Token
+- Fertig! ✅
+
+**Für manuelle Konfiguration:**
+- Lies `n8n_http_request_examples.md`
+- Folge der Schritt-für-Schritt Anleitung
+
+**Für Base64-Details:**
+- Lies `N8N_BASE64_GUIDE.md`
+- Verstehe alle Optionen und Limits
 
 ## Lizenz
 
