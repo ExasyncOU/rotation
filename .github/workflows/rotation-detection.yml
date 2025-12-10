@@ -37,20 +37,41 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Download PDF
+      - name: Prepare PDF
         id: download
         run: |
-          # PDF URL aus Input oder repository_dispatch Event
+          # PDF Daten aus Input oder repository_dispatch Event
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             PDF_URL="${{ github.event.inputs.pdf_url }}"
             VISUALIZE="${{ github.event.inputs.visualize }}"
           else
             PDF_URL="${{ github.event.client_payload.pdf_url }}"
+            PDF_BASE64="${{ github.event.client_payload.pdf_base64 }}"
             VISUALIZE="${{ github.event.client_payload.visualize }}"
           fi
 
-          echo "Downloading PDF from: $PDF_URL"
-          curl -L -o input.pdf "$PDF_URL"
+          # Prüfe ob Base64 oder URL
+          if [ -n "$PDF_BASE64" ]; then
+            echo "Decoding PDF from Base64..."
+            echo "$PDF_BASE64" | base64 -d > input.pdf
+            echo "PDF decoded successfully"
+          elif [ -n "$PDF_URL" ]; then
+            echo "Downloading PDF from: $PDF_URL"
+            curl -L -o input.pdf "$PDF_URL"
+            echo "PDF downloaded successfully"
+          else
+            echo "Error: Neither pdf_url nor pdf_base64 provided"
+            exit 1
+          fi
+
+          # Prüfe ob PDF erfolgreich erstellt wurde
+          if [ ! -f input.pdf ]; then
+            echo "Error: input.pdf not created"
+            exit 1
+          fi
+
+          FILE_SIZE=$(stat -c%s input.pdf 2>/dev/null || stat -f%z input.pdf)
+          echo "PDF file size: $FILE_SIZE bytes"
 
           echo "pdf_file=input.pdf" >> $GITHUB_OUTPUT
           echo "visualize=$VISUALIZE" >> $GITHUB_OUTPUT

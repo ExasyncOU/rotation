@@ -1,0 +1,180 @@
+{
+  "name": "PDF Rotation Detection - GitHub Actions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pdf-upload",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - PDF Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "your-webhook-id"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "pdf-base64",
+              "name": "pdf_base64",
+              "value": "={{ $('Webhook - PDF Upload').item.binary.file.data }}",
+              "type": "string"
+            },
+            {
+              "id": "visualize",
+              "name": "visualize",
+              "value": "={{ $json.visualize || false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "callback-url",
+              "name": "callback_url",
+              "value": "={{ $('Webhook - Result Callback').params.path }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-data",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/ExasyncOU/rotation/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event_type",
+              "value": "detect-rotation"
+            },
+            {
+              "name": "client_payload",
+              "value": "={{ {\n  \"pdf_base64\": $json.pdf_base64,\n  \"visualize\": $json.visualize,\n  \"callback_url\": $json.callback_url\n} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "github-trigger",
+      "name": "GitHub Actions - Trigger",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [680, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "your-credential-id",
+          "name": "GitHub Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rotation-result",
+        "options": {}
+      },
+      "id": "webhook-result",
+      "name": "Webhook - Result Callback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "webhookId": "result-webhook-id"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "rotation-angle",
+              "name": "rotation_angle",
+              "value": "={{ $json.median_angle }}",
+              "type": "number"
+            },
+            {
+              "id": "needs-correction",
+              "name": "needs_correction",
+              "value": "={{ $json.needs_correction }}",
+              "type": "boolean"
+            },
+            {
+              "id": "lines-detected",
+              "name": "lines_detected",
+              "value": "={{ $json.lines_detected }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "process-result",
+      "name": "Process Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - PDF Upload": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "GitHub Actions - Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Result Callback": {
+      "main": [
+        [
+          {
+            "node": "Process Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

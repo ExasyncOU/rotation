@@ -72,7 +72,7 @@ https://api.github.com/repos/ExasyncOU/rotation/dispatches
 }
 ```
 
-**Body (JSON):**
+**Body (JSON) - Option 1: Mit URL**
 ```json
 {
   "event_type": "detect-rotation",
@@ -83,6 +83,21 @@ https://api.github.com/repos/ExasyncOU/rotation/dispatches
   }
 }
 ```
+
+**Body (JSON) - Option 2: Mit Base64 (für direkte PDF-Uploads)**
+```json
+{
+  "event_type": "detect-rotation",
+  "client_payload": {
+    "pdf_base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8P...",
+    "visualize": false,
+    "callback_url": "https://your-n8n-webhook.com/callback"
+  }
+}
+```
+
+> **Hinweis:** Die Base64-Methode ist ideal, wenn du PDFs direkt aus N8N hochlädst.
+> Siehe `N8N_BASE64_GUIDE.md` für detaillierte Anleitung.
 
 #### Schritt 3: Callback empfangen (Optional)
 
