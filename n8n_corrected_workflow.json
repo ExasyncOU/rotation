@@ -1,0 +1,111 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "pdf-url-field",
+              "name": "pdf_url",
+              "value": "https://example.com/your-document.pdf",
+              "type": "string"
+            },
+            {
+              "id": "visualize-field",
+              "name": "visualize",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "callback-field",
+              "name": "callback_url",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-2544, 2192],
+      "id": "edit-fields-corrected",
+      "name": "Edit Fields - Set Input"
+    },
+    {
+      "parameters": {
+        "jsCode": "const json = $input.item.json;\nconst binary = $input.item.binary;\n\nlet payload = {\n  event_type: \"detect-rotation\",\n  client_payload: {\n    visualize: json.visualize || false,\n    callback_url: json.callback_url || \"\"\n  }\n};\n\n// Automatische Erkennung\nif (json.pdf_url) {\n  payload.client_payload.pdf_url = json.pdf_url;\n} else if (binary && binary.data) {\n  payload.client_payload.pdf_base64 = binary.data.data;\n} else if (json.pdf_base64) {\n  payload.client_payload.pdf_base64 = json.pdf_base64;\n}\n\nreturn { json: payload };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-2304, 2192],
+      "id": "code-smart-builder",
+      "name": "Smart Payload Builder"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/ExasyncOU/rotation/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-2096, 2176],
+      "id": "http-github-trigger",
+      "name": "GitHub Actions - Trigger",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "X6Ig8h8qIRbwatap",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Edit Fields - Set Input": {
+      "main": [
+        [
+          {
+            "node": "Smart Payload Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smart Payload Builder": {
+      "main": [
+        [
+          {
+            "node": "GitHub Actions - Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6016a2c42809145bb5595efe0d5a74b96d1cd48c284cca27c515339a8cf66d9b"
+  }
+}

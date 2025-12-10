@@ -1,10 +1,11 @@
-# PDF Rotation Detection
+# Document Rotation Detection
 
-Automatische Erkennung des Rotationswinkels von gescannten PDF-Dokumenten mit OpenCV und Python.
+Automatische Erkennung des Rotationswinkels von gescannten Dokumenten (PDF, PNG, JPEG, etc.) mit OpenCV und Python.
 
 ## Features
 
 - 🔍 Automatische Erkennung des Rotationswinkels
+- 📄 **Mehrere Dateiformate**: PDF, PNG, JPEG, JPG, BMP, TIFF
 - 📊 Visualisierung der erkannten Linien
 - 🚀 GitHub Actions Integration
 - 🔗 N8N Workflow Integration
@@ -26,25 +27,31 @@ Automatische Erkennung des Rotationswinkels von gescannten PDF-Dokumenten mit Op
 # Dependencies installieren
 pip install -r requirements.txt
 
-# PDF analysieren
+# Dokument analysieren (PDF, PNG, JPEG, etc.)
 python detect_rotation.py path/to/your/document.pdf
+python detect_rotation.py path/to/your/image.png
+python detect_rotation.py path/to/your/scan.jpg
 
 # Mit Visualisierung
 python detect_rotation.py path/to/your/document.pdf --visualize
 ```
 
+**Unterstützte Formate:** PDF, PNG, JPEG, JPG, BMP, TIFF
+
 ### 2. GitHub Actions (Manuell)
 
 1. Gehe zu: `Actions` → `PDF Rotation Detection` → `Run workflow`
-2. Gib die PDF-URL ein
+2. Gib die Datei-URL ein (PDF, PNG, JPEG werden automatisch erkannt)
 3. Optional: Aktiviere Visualisierung
 4. Klicke auf `Run workflow`
 
 ### 3. N8N Integration (Beide Methoden: URL oder Base64)
 
-Der Workflow unterstützt **zwei Methoden** zum Senden von PDFs:
-- ✅ **URL-Methode**: PDF liegt bereits online (z.B. Cloud Storage)
-- ✅ **Base64-Methode**: PDF direkt aus N8N hochladen/senden
+Der Workflow unterstützt **zwei Methoden** zum Senden von Dateien:
+- ✅ **URL-Methode**: Datei liegt bereits online (z.B. Cloud Storage)
+- ✅ **Base64-Methode**: Datei direkt aus N8N hochladen/senden
+
+**Unterstützte Formate:** PDF, PNG, JPEG, JPG, BMP, TIFF (automatische Erkennung)
 
 #### Quick Start: Importiere fertigen Workflow
 
@@ -134,7 +141,7 @@ https://api.github.com/repos/ExasyncOU/rotation/dispatches
 
 #### Verwendungsbeispiele
 
-**Beispiel 1: PDF von URL laden**
+**Beispiel 1: Datei von URL laden (PDF, PNG, JPEG)**
 
 Sende folgendes JSON an deinen N8N Webhook:
 ```json
@@ -145,7 +152,15 @@ Sende folgendes JSON an deinen N8N Webhook:
 }
 ```
 
-**Beispiel 2: PDF als Base64 senden**
+```json
+{
+  "pdf_url": "https://example.com/scan.png",
+  "visualize": true,
+  "callback_url": "https://your-n8n-webhook.com/callback"
+}
+```
+
+**Beispiel 2: Datei als Base64 senden**
 
 Sende folgendes JSON an deinen N8N Webhook:
 ```json
@@ -156,13 +171,17 @@ Sende folgendes JSON an deinen N8N Webhook:
 }
 ```
 
-**Beispiel 3: PDF als Binary hochladen**
+**Beispiel 3: Datei als Binary hochladen**
 
 Sende ein Multipart-Form-Upload an deinen N8N Webhook:
 ```bash
 curl -X POST https://your-n8n.app.n8n.cloud/webhook/pdf-rotation \
   -F "data=@document.pdf" \
   -F "visualize=false"
+
+curl -X POST https://your-n8n.app.n8n.cloud/webhook/pdf-rotation \
+  -F "data=@scan.png" \
+  -F "visualize=true"
 ```
 
 > **Detaillierte Anleitungen:**
@@ -207,7 +226,8 @@ Das Script gibt ein JSON-Objekt zurück:
   "mean_angle": -2.41,
   "std_dev": 5.67,
   "lines_detected": 142,
-  "needs_correction": true
+  "needs_correction": true,
+  "file_type": "image"
 }
 ```
 
@@ -217,6 +237,7 @@ Das Script gibt ein JSON-Objekt zurück:
 - `std_dev`: Standardabweichung der erkannten Winkel
 - `lines_detected`: Anzahl der erkannten Linien
 - `needs_correction`: Boolean - ob Korrektur empfohlen wird (> 0.5°)
+- `file_type`: Erkannter Dateityp (`"pdf"` oder `"image"`)
 
 ## GitHub Actions Details
 
