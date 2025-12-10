@@ -1,0 +1,97 @@
+name: PDF Rotation Detection
+
+on:
+  # Ermöglicht manuellen Trigger über GitHub UI
+  workflow_dispatch:
+    inputs:
+      pdf_url:
+        description: 'URL zum PDF-Dokument'
+        required: true
+        type: string
+      visualize:
+        description: 'Visualisierung erstellen'
+        required: false
+        type: boolean
+        default: false
+
+  # Ermöglicht Trigger von N8N über repository_dispatch
+  repository_dispatch:
+    types: [detect-rotation]
+
+jobs:
+  detect-rotation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download PDF
+        id: download
+        run: |
+          # PDF URL aus Input oder repository_dispatch Event
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            PDF_URL="${{ github.event.inputs.pdf_url }}"
+            VISUALIZE="${{ github.event.inputs.visualize }}"
+          else
+            PDF_URL="${{ github.event.client_payload.pdf_url }}"
+            VISUALIZE="${{ github.event.client_payload.visualize }}"
+          fi
+
+          echo "Downloading PDF from: $PDF_URL"
+          curl -L -o input.pdf "$PDF_URL"
+
+          echo "pdf_file=input.pdf" >> $GITHUB_OUTPUT
+          echo "visualize=$VISUALIZE" >> $GITHUB_OUTPUT
+
+      - name: Detect Rotation
+        id: detect
+        run: |
+          ARGS="input.pdf"
+          if [ "${{ steps.download.outputs.visualize }}" == "true" ]; then
+            ARGS="$ARGS --visualize"
+          fi
+
+          python detect_rotation.py $ARGS > output.txt 2>&1
+          cat output.txt
+
+          # Extrahiere JSON-Ergebnis aus dem Output
+          RESULT=$(grep -A 1 "::set-output" output.txt | tail -n 1 || echo "{}")
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rotation-results
+          path: |
+            output.txt
+            *_lines_detected.jpg
+            input.pdf
+          retention-days: 7
+
+      - name: Post Results to Callback URL
+        if: github.event.client_payload.callback_url != ''
+        run: |
+          RESULT="${{ steps.detect.outputs.result }}"
+          CALLBACK_URL="${{ github.event.client_payload.callback_url }}"
+
+          curl -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$RESULT"
+
+      - name: Comment on Commit (optional)
+        if: github.event.client_payload.create_comment == 'true'
+        run: |
+          echo "Results: ${{ steps.detect.outputs.result }}"

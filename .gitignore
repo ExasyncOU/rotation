@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PDF files
+*.pdf
+
+# Generated images
+*_lines_detected.jpg
+*_rotated.jpg
+
+# Logs
+*.log
+output.txt
+
+# Test files
+test_*.pdf
+sample_*.pdf
