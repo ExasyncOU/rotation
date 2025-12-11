@@ -111,8 +111,8 @@ jobs:
 
           echo "Python script exit code: $EXIT_CODE"
 
-          # Extrahiere JSON-Ergebnis aus dem Output
-          RESULT=$(grep -A 1 "::set-output" output.txt | tail -n 1 || echo "{}")
+          # Extrahiere JSON-Ergebnis aus dem Output (neues Format)
+          RESULT=$(grep -A 1 "ROTATION_RESULT_JSON:" output.txt | tail -n 1 || echo "{}")
           echo "result=$RESULT" >> $GITHUB_OUTPUT
 
           # Fail if Python script failed
@@ -132,9 +132,15 @@ jobs:
       - name: Write Result to Job Summary and File
         run: |
           RESULT="${{ steps.detect.outputs.result }}"
+
+          # Formatiere JSON für Summary (mit error handling)
           echo "## Rotation Detection Result" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "$RESULT" | jq '.' >> $GITHUB_STEP_SUMMARY
+          if echo "$RESULT" | jq '.' 2>/dev/null; then
+            echo "$RESULT" | jq '.' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "$RESULT" >> $GITHUB_STEP_SUMMARY
+          fi
           echo '```' >> $GITHUB_STEP_SUMMARY
 
           # Schreibe in eine Datei für einfachen API-Zugriff

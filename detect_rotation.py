@@ -189,8 +189,9 @@ if __name__ == "__main__":
         else:
             print(f"\nDas Dokument ist bereits gut ausgerichtet!")
 
-        # JSON output für GitHub Actions
-        print("\n::set-output name=rotation_result::" + json.dumps(result))
+        # JSON output für GitHub Actions (print direkt, nicht als set-output)
+        print("\nROTATION_RESULT_JSON:")
+        print(json.dumps(result))
     else:
         print("Error: Could not detect rotation")
         sys.exit(1)
