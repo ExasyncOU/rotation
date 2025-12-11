@@ -1,4 +1,4 @@
-opencv-python-headless==4.12.0.88
-pymupdf==1.26.6
-numpy==2.2.6
-Pillow==11.1.0
+opencv-python-headless>=4.8.0,<5.0.0
+pymupdf>=1.23.0,<2.0.0
+numpy>=1.24.0,<2.0.0
+Pillow>=10.0.0,<12.0.0
