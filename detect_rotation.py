@@ -159,8 +159,8 @@ def detect_rotation_angle(file_path, create_visualization=False):
         "median_angle": float(median_angle),
         "mean_angle": float(mean_angle),
         "std_dev": float(np.std(angles)),
-        "lines_detected": len(lines),
-        "needs_correction": abs(median_angle) > 0.5,
+        "lines_detected": int(len(lines)),
+        "needs_correction": bool(abs(median_angle) > 0.5),
         "file_type": get_file_type(file_path)
     }
 
