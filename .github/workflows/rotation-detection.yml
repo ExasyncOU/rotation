@@ -129,7 +129,7 @@ jobs:
             input.*
           retention-days: 7
 
-      - name: Write Result to Job Summary
+      - name: Write Result to Job Summary and File
         run: |
           RESULT="${{ steps.detect.outputs.result }}"
           echo "## Rotation Detection Result" >> $GITHUB_STEP_SUMMARY
@@ -137,8 +137,13 @@ jobs:
           echo "$RESULT" | jq '.' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          # Schreibe auch in eine Datei für einfachen API-Zugriff
+          # Schreibe in eine Datei für einfachen API-Zugriff
           echo "$RESULT" > result.json
+
+          # WICHTIG: Schreibe auch ins output.txt für direkten Log-Zugriff
+          echo "ROTATION_RESULT_JSON_START" >> output.txt
+          echo "$RESULT" >> output.txt
+          echo "ROTATION_RESULT_JSON_END" >> output.txt
 
       - name: Upload Result JSON
         uses: actions/upload-artifact@v4
