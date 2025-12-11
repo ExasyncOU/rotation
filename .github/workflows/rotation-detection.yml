@@ -102,12 +102,21 @@ jobs:
           fi
 
           echo "Running rotation detection on: $INPUT_FILE"
-          python detect_rotation.py $ARGS > output.txt 2>&1
-          cat output.txt
+
+          # Führe das Script aus und speichere den Exit-Code
+          set +e
+          python detect_rotation.py $ARGS 2>&1 | tee output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+
+          echo "Python script exit code: $EXIT_CODE"
 
           # Extrahiere JSON-Ergebnis aus dem Output
           RESULT=$(grep -A 1 "::set-output" output.txt | tail -n 1 || echo "{}")
           echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+          # Fail if Python script failed
+          exit $EXIT_CODE
 
       - name: Upload Artifacts
         if: always()
